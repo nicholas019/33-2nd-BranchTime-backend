@@ -58,27 +58,27 @@ class UserDetailView(View):
     @login_decorator
     def get(self, request):
         try : 
-            user = User.objects.get(id=request.user.id)
-            author = Author.objects.filter(user_id = user.id)
-            user_detail = {
-                            "id"              : user.id,
-                            "name"            : user.name,
-                            "description"     : user.introduction,
-                            "avatar"          : user.thumbnail,
-                            "subscriber"      : user.subscription.all().count(),
-                            "interestedAuthor": user.interestedauthor_set.all().count(),
-                    }
+            user = User.objects.select_related('author').get(id=request.user.id)
 
-            if author.exists():
-                user_detail["description"] = user.author.introduction
-                user_detail['career']      = user.author.career
-            
-            return JsonResponse({"user_detail" : user_detail}, status = 200)
+            result = {
+                "id"              : user.id,
+                "name"            : user.name,
+                "description"     : user.introduction,
+                "avatar"          : user.thumbnail,
+                "subscriber"      : user.subscription.all().count(),
+                "interestedAuthor": user.interestedauthor_set.all().count(),
+                "author"          : {
+                    "description" : user.author.introduction if user.author else None,
+                    "career"      : user.author.career if user.author else None
+                    }
+                }
+            return JsonResponse({"result":result}, status = 200)
 
         except User.DoesNotExist:
             return JsonResponse({"message":"DoesNotExist"}, status = 401)  
         except KeyError:
             return JsonResponse({"message":"KEY ERROR"}, status = 400)    
+
 
 class ProfileUpdate(View):
     @login_decorator

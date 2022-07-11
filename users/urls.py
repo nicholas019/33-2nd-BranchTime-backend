@@ -1,7 +1,6 @@
-from xml.etree.ElementInclude import include
 from django.urls import path
 
-from .views import KakaoLoginView, ProfileUpdate, UserDetailView
+from .views      import KakaoLoginView, ProfileUpdate, UserDetailView
 
 urlpatterns = [
     path('/kakao', KakaoLoginView.as_view()),

@@ -1,15 +1,16 @@
 import jwt, uuid
 
-from django.conf import settings
-from django.test import TestCase, Client
-from django.db import transaction
+from django.conf                    import settings
+from django.test                    import TestCase, Client
+from django.db                      import transaction
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.urls import reverse
-from unittest.mock import MagicMock, patch
-from django.db import transaction
+from django.db                      import transaction
 
-from users.models import SocialAccount, User
-from authors.models import Author
+from unittest.mock                  import MagicMock, patch
+
+from contents.models                import MainCategory, SubCategory
+from users.models                   import SocialAccount, User
+from authors.models                 import Author
 
 
 
@@ -66,52 +67,63 @@ class KakaoLoginViewTest(TestCase):
         user    = User.objects.get(id=user_id)
         self.assertEqual(user.email, "abcd@naver.com")
 
-
 class UserDetailViewTest(TestCase):
     def setUp(self):
-        
         with transaction.atomic():
-            User.objects.create(
-                id = 1,
-                name         = "홍길동",
-                email        = "test@gmail.com",
-                thumbnail    = "test.jpg",
-                introduction = "홍길동님의 BranchTime입니다."
-            )
-            SocialAccount.objects.create(
-                        id = 1,
-                        social_account_id = "123123123",
-                        name              = "kakao",
-                        user_id           = 1
-                        )
-        
-        Author.objects.create(
-            id = 1,
-            introduction = "나는 작가 홍길동입니다",
-            career = "한국대학교 졸업",
-            user_id = 1
+            User.objects.bulk_create([
+                User(
+                    id           = 1,
+                    name         = "홍길동",
+                    email        = "test@gmail.com",
+                    thumbnail    = "test.jpg",
+                    introduction = "홍길동님의 BranchTime입니다."
+                    ),
+                User(
+                    id           = 2,
+                    name         = "김길동",
+                    email        = "test1@gmail.com",
+                    thumbnail    = "test1.jpg",
+                    introduction = "김길동님의 BranchTime입니다."
+                    )
+                ])
+            SocialAccount.objects.bulk_create([
+                SocialAccount(
+                    id                = 1,
+                    social_account_id = "123123123",
+                    name              = "kakao",
+                    user_id           = 1
+                    ),
+                SocialAccount(
+                    id                = 2,
+                    social_account_id = "123123456",
+                    name              = "kakao",
+                    user_id           = 2
+                    ) 
+                ])
+        MainCategory.objects.create(
+            id   = 1,
+            name = "메인카테고리"
+        )
+        SubCategory.objects.create(
+            id              = 1,
+            name            = "서브카테고리",
+            maincategory_id = 1
         )
 
-        with transaction.atomic():
-            User.objects.create(
-                id = 2,
-                name         = "김길동",
-                email        = "test1@gmail.com",
-                thumbnail    = "test1.jpg",
-                introduction = "김길동님의 BranchTime입니다."
-            )
-            SocialAccount.objects.create(
-                        id = 2,
-                        social_account_id = "123123456",
-                        name              = "kakao",
-                        user_id           = 2
-                        )
-
+        Author.objects.create(
+            id             = 1,
+            introduction   = "나는 작가 홍길동입니다",
+            career         = "한국대학교 졸업",
+            user_id        = 1,
+            subcategory_id = 1
+        )
         self.token = jwt.encode({'id':User.objects.get(id=1).id}, settings.SECRET_KEY, settings.ALGORITHM)
 
     def tearDown(self):
         User.objects.all().delete()  
         Author.objects.all().delete()  
+        MainCategory.objects.all().delete()  
+        SubCategory.objects.all().delete()  
 
     def test_user_detail_view_success(self):
         client = Client()        
@@ -121,18 +133,20 @@ class UserDetailViewTest(TestCase):
         response = client.get('/users/mypage', content_type='application/json', **headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {
-            "user_detail": {
-                "id": 1, 
-                "name": "홍길동", 
-                "description": "나는 작가 홍길동입니다", 
-                "avatar": "test.jpg",
-                "subscriber": 0,
+            "result": {
+                "id"              : 1,
+                "name"            : "홍길동",
+                "description"     : "홍길동님의 BranchTime입니다.",
+                "avatar"          : "test.jpg",
+                "subscriber"      : 0,
                 "interestedAuthor": 0,
-                "career": "한국대학교 졸업"
+                "author"          : {
+                    "description": "나는 작가 홍길동입니다",
+                    "career"     : "한국대학교 졸업",
+                    }
                 }
             }
         )
-
     def test_user_detail_view_invalid_token(self):
         client = Client()        
         
@@ -142,7 +156,6 @@ class UserDetailViewTest(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"message" : "INVALID TOKEN"})    
 
-
     def test_user_detail_view_invalid_user(self):
         client = Client()        
         self.token = jwt.encode({'id':3}, settings.SECRET_KEY, settings.ALGORITHM)
@@ -151,90 +164,3 @@ class UserDetailViewTest(TestCase):
         response = client.get('/users/mypage', content_type='application/json', **headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"message" : "INVAILD_USER"})        
-
-
-
-
-class ProfileUpdateTest(TestCase):
-    def setUp(self):
-        with transaction.atomic():
-            User.objects.create(
-                id = 1,
-                name         = "홍길동",
-                email        = "test@gmail.com",
-                thumbnail    = "test.jpg",
-                introduction = "홍길동님의 BranchTime입니다."
-            )
-            SocialAccount.objects.create(
-                        id = 1,
-                        social_account_id = "123123123",
-                        name              = "kakao",
-                        user_id           = 1
-                        )
-        self.token = jwt.encode({'id':1}, settings.SECRET_KEY, settings.ALGORITHM)
-
-    def tearDown(self):
-        User.objects.all().delete()  
-    
-    @patch("core.views.upload_fileobj")
-    def test_post_success_profile_upload(self, mocked_requests):
-        client = Client()
-
-        image = SimpleUploadedFile('python.png', b'') 
-        image._set_name(str(uuid.uuid4())) 
-        Key = "profile/"+str(image)
-
-        class MockedResponse1:
-            def upload_fileobj(Fileobj, Bucket, Key, ExtraArgs):
-                return True
-
-            upload_fileobj(
-                Fileobj= "python.png",
-                Bucket='aws_s3_bucket_name',
-                Key = Key,
-                ExtraArgs=None
-            )
-
-        date = {
-            'name' : "김길동",
-            'description' : "나는 김길동이다.",
-            'image' : image
-        }
-
-        mocked_requests.return_value = MockedResponse1()
-        headers = {"HTTP_Authorization":self.token}
-        response = client.post(reverse("profileupdate"), {"image":date}, content_type = 'image', **headers )
-        self.assertEqual(response.status_code, 201)
-
-
-
-    # @patch("core.views.object_delete")
-    # def test_post_success_profile_upload(self, mocked_requests):
-    #     client = Client()
-    #     headers = {"HTTP_Authorization": self.token}
-    #     image = SimpleUploadedFile('python.png', b'') 
-    #     image._set_name(str(uuid.uuid4())) 
-    #     Key = "profile/"+str(image)
-    #     class MockedResponse1:
-    #         def upload_fileobj(Fileobj, Bucket, Key, ExtraArgs):
-    #             return True
-
-    #         upload_fileobj(
-    #             Fileobj= image,
-    #             Bucket='aws_s3_bucket_name',
-    #             Key = Key,
-    #             ExtraArgs=None
-    #         )
-    #     class MockedResponse2:    
-    #         def object_delete(Key):
-    #             return True
-
-    #         object_delete(
-    #             key = Key
-    #         )    
-
-    #     mocked_requests.return_value = MockedResponse1()
-    #     mocked_requests.return_value = MockedResponse2()
-    #     headers = {"HTTP_Authorization":self.token}
-    #     response = client.post(reverse("profileupdate"), {"image":image}, content_type = 'image', **headers )
-    #     self.assertEqual(response.status_code, 201)
