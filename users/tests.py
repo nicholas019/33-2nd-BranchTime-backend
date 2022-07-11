@@ -13,7 +13,6 @@ from users.models                   import SocialAccount, User
 from authors.models                 import Author
 
 
-
 @patch('users.views.requests')
 class KakaoLoginViewTest(TestCase):
     def test_success_kakao_login_new_user(self, mocked_requests):
@@ -164,3 +163,137 @@ class UserDetailViewTest(TestCase):
         response = client.get('/users/mypage', content_type='application/json', **headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"message" : "INVAILD_USER"})        
+
+class ProfileUpdateTest(TestCase):
+    def setUp(self):
+        with transaction.atomic():
+            User.objects.bulk_create([
+                User(
+                    id           = 1,
+                    name         = "홍길동",
+                    email        = "test@gmail.com",
+                    thumbnail    = "test.jpg",
+                    introduction = "홍길동님의 BranchTime입니다."
+                    ),
+                User(
+                    id           = 2,
+                    name         = "김길동",
+                    email        = "test1@gmail.com",
+                    thumbnail    = "test1.jpg",
+                    introduction = "김길동님의 BranchTime입니다."
+                    )
+                ])
+            SocialAccount.objects.bulk_create([
+                SocialAccount(
+                    id                = 1,
+                    social_account_id = "123123123",
+                    name              = "kakao",
+                    user_id           = 1
+                    ),
+                SocialAccount(
+                    id                = 2,
+                    social_account_id = "123123456",
+                    name              = "kakao",
+                    user_id           = 2
+                    ) 
+                ])
+            MainCategory.objects.create(
+                id   = 1,
+                name = "메인카테고리"
+            )
+            SubCategory.objects.create(
+                id              = 1,
+                name            = "서브카테고리",
+                maincategory_id = 1
+            )
+            Author.objects.create(
+            id             = 1,
+            introduction     = "나는 작가 김길동입니다",
+            career         = "한국대학교 졸업",
+            user_id        = 2,
+            subcategory_id = 1
+            )            
+
+    def tearDown(self):
+        User.objects.all().delete()  
+        MainCategory.objects.all().delete()  
+        SubCategory.objects.all().delete()  
+        Author.objects.all().delete()  
+    
+    @patch("utils.fileuploader_api.FileUploader.upload")
+    def test_post_success_author_profile_update(self, mocked_requests):
+        client     = Client()
+        self.token = jwt.encode({'id':2}, settings.SECRET_KEY, settings.ALGORITHM)
+        headers    = {"HTTP_Authorization":self.token}
+        image      = SimpleUploadedFile('python.png', b'')
+
+        class MockedResponse:
+            def upload(file):
+                file   = str(uuid.uuid4())
+                config = settings.AWS_STORAGE_BUCKET_NAME
+                return f'https://{config}.s3.{settings.AWS_REGION}.amazonaws.com/{file}'
+                
+        mocked_requests.return_value = MockedResponse()
+        response = client.post(
+            "/users/update",
+            {
+                "name"       : "작가 김길동",
+                "image"      : image,
+                "description": "나는 프론트엔드 작가 김길동이다."
+                }, 
+            **headers 
+            )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(), {"message" : "AUTHOR UPDATE SUCCESS"})                 
+
+    @patch("utils.fileuploader_api.FileUploader.upload")
+    def test_post_success_user_profile_update(self, mocked_requests):
+        client  = Client()
+        self.token = jwt.encode({'id':1}, settings.SECRET_KEY, settings.ALGORITHM)
+        headers = {"HTTP_Authorization":self.token}
+        image   = SimpleUploadedFile('python.png', b'')
+        file    = str(uuid.uuid4())
+
+        class MockedResponse:
+            def upload(file):
+                config = settings.AWS_STORAGE_BUCKET_NAME
+                return f'https://{config}.s3.{settings.AWS_REGION}.amazonaws.com/{file}'
+                
+        mocked_requests.return_value = MockedResponse()
+        response = client.post(
+            "/users/update", 
+            {
+                "name"       : "김길동",
+                "image"      : image,
+                "description": "나는 작가지망생 김길동입니다"
+                },
+            **headers 
+            )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(), {"message" : "USER UPDATE SUCCESS"})    
+    
+    @patch("utils.fileuploader_api.FileUploader.upload")
+    def test_post_fail_invalid_extension_profile_update(self, mocked_requests):
+        client  = Client()
+        self.token = jwt.encode({'id':1}, settings.SECRET_KEY, settings.ALGORITHM)
+        headers = {"HTTP_Authorization":self.token}
+        image   = SimpleUploadedFile('python.hwp', b'')
+        file    = uuid.uuid4()
+        
+        class MockedUploadResponse:
+            def upload(file):
+                config = settings.AWS_STORAGE_BUCKET_NAME
+                return f'https://{config}.s3.{settings.AWS_REGION}.amazonaws.com/{file}'
+        
+        mocked_requests.return_value = MockedUploadResponse()
+        response = client.post(
+            "/users/update", 
+            {
+                'name'       : "김길동",
+                'image'      : image,
+                'description': "나는 김길동이다"
+                }, 
+            **headers 
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"message":"INVALID EXTENSION"})    

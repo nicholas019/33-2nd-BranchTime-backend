@@ -1,16 +1,22 @@
-import jwt, requests, boto3, uuid, json
+import jwt, requests, boto3
+
+from django.views           import View
+from django.conf            import settings
+from django.db              import transaction
+from django.http            import JsonResponse
+
+from users.models           import SocialAccount, User
+from authors.models         import Author
+
+from utils.fileuploader_api import FileUploader, FileHandler, image_extension_list
+from utils.login_decorator  import login_decorator
 
 
-from django.http import JsonResponse
-from django.views import View
-from django.shortcuts import redirect
-from django.conf import settings
-from django.db import transaction
-
-from users.models import SocialAccount, User
-from core.utils import login_decorator
-from core.views import upload_fileobj, object_delete
-from authors.models import Author
+config = {
+    "bucket" : settings.AWS_STORAGE_BUCKET_NAME
+}
+file_uploader = FileUploader(boto3.client('s3'), config)
+file_handler = FileHandler(file_uploader)
 
 class KakaoLoginView(View):
     def get(self, request):
@@ -79,7 +85,6 @@ class UserDetailView(View):
         except KeyError:
             return JsonResponse({"message":"KEY ERROR"}, status = 400)    
 
-
 class ProfileUpdate(View):
     @login_decorator
     def post(self, request):
@@ -87,25 +92,28 @@ class ProfileUpdate(View):
         description = request.POST.get('description')
         image       = request.FILES.get("image")
 
-        if not str(image).split('.')[-1] in ['png', 'jpg', 'gif', 'jpeg']:
+        extension = image_extension_list
+        if not str(image).split('.')[-1] in extension:
             return JsonResponse({"message":"INVALID EXTENSION"}, status = 400)
 
         user = request.user
-        
-        if user.thumbnail.find(settings.AWS_STORAGE_BUCKET_NAME) != -1:
-            key = user.thumbnail.split("amazonaws.com/")[-1]
-            object_delete(Key=key)
-        
-        image._set_name(str(uuid.uuid4()))        
-        
-        upload_fileobj(Fileobj=image, Key = "profile/"+str(image), ExtraArgs=None)
-        
-        bucket_object_name = settings.IMAGE_URL+"profile/"+str(image)
-        
-        user = request.user
-        user.name        = name
-        user.description = description
-        user.thumbnail   = bucket_object_name
-        user.save()
+        if user.thumbnail.find("amazonaws.com/") != -1:
+            file_name = user.thumbnail.split("amazonaws.com/")[-1]
+            file_handler.delete(file_name=file_name)
 
-        return JsonResponse({"message": "CREATE"}, status = 201)
+        image_url = file_handler.upload(file=image)
+        
+        author = Author.objects.filter(user_id = user.id)
+        user = User.objects.filter(id = user.id)
+        if author.exists():
+            user.update(name = name, thumbnail = image_url)
+            author.update(introduction = description)
+            return JsonResponse({"message":"SUCCESS"}, status = 201)
+
+        user.update(
+                name         = name,
+                thumbnail    = image_url,
+                introduction = description
+                )
+        return JsonResponse({"message":"SUCCESS"}, status = 201)
+            
