@@ -53,17 +53,17 @@ class AuthorListView(View):
 class AuthorDetailView(View):
     def get(self, request, author_id):
         try:
-            authors = Author.objects.get(id = author_id)
-            author_detail = {
-                        "id"              : authors.id,
-                        "name"            : authors.user.name,
-                        "description"     : authors.introduction,
-                        "avatar"          : authors.user.thumbnail,
-                        "subscriber"      : authors.user.subscription.all().count(),
-                        "interestedAuthor": authors.user.interestedauthor_set.all().count(),
-                        }
+            authors = Author.objects.select_related('user').get(id = author_id)
+            result = {
+                "id"              : authors.id,
+                "name"            : authors.user.name,
+                "description"     : authors.introduction,
+                "avatar"          : authors.user.thumbnail,
+                "subscriber"      : authors.user.subscription.all().count(),
+                "interestedAuthor": authors.user.interestedauthor_set.all().count(),
+                }
 
-            return JsonResponse({"author_detail" : author_detail}, status = 200)
+            return JsonResponse({"result" : result}, status = 200)
 
         except Author.DoesNotExist:
             return JsonResponse({"message":"DoesNotExist"}, status = 401)  
