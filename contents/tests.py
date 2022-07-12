@@ -264,44 +264,66 @@ class PostDetailViewTest(TestCase):
         response = client.get('/contents/post/1', content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
-class CommentImageUploadTest(TestCase):
+class CommentUploadViewTest(TestCase):
     def setUp(self):
-        User.objects.create(
-            id           = 1,
-            email        = "dno06103@naver.com",
-            name         = "김민정",
-            thumbnail    = "저거.png",
-            introduction = "블라블라블라블라",
-        )
-
-        self.token = jwt.encode({'id':User.objects.get(id=1).id}, settings.SECRET_KEY, settings.ALGORITHM)
-
+        with transaction.atomic():
+            User.objects.create(
+                id           = 1,
+                name         = "홍길동",
+                email        = "test@gmail.com",
+                thumbnail    = "test.jpg",
+                introduction = "홍길동님의 BranchTime입니다."
+            )
+            SocialAccount.objects.create(
+                        id                = 1,
+                        social_account_id = "123123123",
+                        name              = "kakao",
+                        user_id           = 1
+                        )
+        MainCategory.objects.create(
+                id   = 1,
+                name = "메인카테고리"
+            )
+        SubCategory.objects.create(
+                id              = 1,
+                name            = "서브카테고리",
+                maincategory_id = 1
+            )  
+        Post.objects.create(
+            id = 1,
+            title = "제목1",
+            sub_title = "소제목1",
+            thumbnail_image = "test.png",
+            content = "내용1",
+            reading_time = "01:01",
+            user_id = 1,
+            subcategory_id = 1
+            )
+        self.token = jwt.encode({'id':1}, settings.SECRET_KEY, settings.ALGORITHM)
+    
     def tearDown(self):
         User.objects.all().delete()
+        MainCategory.objects.all().delete()
+        SubCategory.objects.all().delete()
+        Post.objects.all().delete()
 
-    @patch("core.views.upload_fileobj")
-    def test_success_comment_image_upload(self, mocked_requests):
+    @patch("utils.fileuploader_api.FileUploader.upload")
+    def test_commnet_upload_view(self, mocked_requests):            
         client = Client()
-
-        headers = {"HTTP_Authorization": self.token}
-        content_image = SimpleUploadedFile('요거.png', b'')       
+        headers    = {"HTTP_Authorization":self.token}
+        image      = SimpleUploadedFile('python.png', b'')
 
         class MockedResponse:
-            def upload_fileobj(Fileobj, Bucket, Key, ExtraArgs):
-                return True
-
-            access_token  = headers["HTTP_Authorization"]
-            payload       = jwt.decode(access_token, settings.SECRET_KEY, algorithms = settings.ALGORITHM)
-            user          = User.objects.get(id = payload["id"])
-            content_image = 'fd.png'
-
-            file = upload_fileobj(
-                Fileobj='fd.png',
-                Bucket='minjeong',
-                Key="content_image/" + str(user.id) + "/" + str(content_image),
-                ExtraArgs={'ACL':'public-read'}
-            )
-
+            def upload(file):
+                file = str(uuid.uuid4())
+                config = settings.AWS_STORAGE_BUCKET_NAME
+                return f'https://{config}.s3.{settings.AWS_REGION}.amazonaws.com/{file}'
+        
+        data = {
+            "image" : image,
+            "content" : "댓글1"
+        }
         mocked_requests.return_value = MockedResponse()
-        response         = client.post('/contents/media', {'content_image' : content_image},**headers)
-        self.assertEqual(response.status_code, 201)
+        response = client.post("/contents/post/1/comment", data, **headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(),{"message":"SUCCESS"})
