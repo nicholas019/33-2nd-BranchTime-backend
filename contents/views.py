@@ -1,11 +1,11 @@
 import datetime
 
-from django.views             import View
-from django.http              import JsonResponse
-from django.shortcuts         import get_object_or_404
+from django.views          import View
+from django.http           import JsonResponse
+from django.shortcuts      import get_object_or_404
 
-from    utils.login_decorator import login_decorator
-from    contents.models       import Post, SubCategory, User, Comment, PostLike, MainCategory
+from utils.login_decorator import login_decorator
+from contents.models       import Post, SubCategory, User, Comment, PostLike, MainCategory
 
 
 class CategoryView(View):
