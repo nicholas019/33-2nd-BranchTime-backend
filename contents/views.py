@@ -8,7 +8,7 @@ from django.shortcuts       import get_object_or_404
 
 from utils.login_decorator  import login_decorator
 from utils.fileuploader_api import FileUploader, FileHandler, image_extension_list
-from contents.models        import Post, SubCategory, Comment, MainCategory
+from contents.models        import Post, Comment, MainCategory
 config = {
     "bucket" : settings.AWS_STORAGE_BUCKET_NAME
 }
@@ -110,6 +110,41 @@ class PostUploadView(View):
         except KeyError :
             return JsonResponse({"message" : "KEY_ERROR"}, status=400)
 
+class PostDetailView(View):
+    def get(self, request, post_id):
+        try:
+            results = []
+            post = Post.objects.prefetch_related('postlike_set','comment_set').select_related('user','subcategory').get(id = post_id)
+            comments = post.comment_set.all()
+            comment = [{
+                'comment_id'     : comment.id,
+                'user_name'      : comment.user.name,
+                'comment_image'  : comment.image,
+                'comment_content': comment.content,
+            } for comment in comments]
+            
+            results.append({
+                'post_id'                : post.id,
+                'post_title'             : post.title,
+                'post_subtitle'          : post.sub_title,
+                'post_subcategory_name'  : post.subcategory.name,
+                'post_user_name'         : post.user.name,
+                'post_created_at'        : post.created_at.strftime("%b.%d.%Y"),
+                'post_content'           : post.content,
+                'post_like_count'        : post.postlike_set.count(),
+                'post_thumbnail_image'   : post.thumbnail_image,
+                'user_name'              : post.user.name,
+                'user_thumbnail'         : post.user.thumbnail,
+                'user_introduction'      : post.user.introduction,
+                'user_subscription_count': post.user.subscription.all().count(),
+                'comment_information'    : comment,
+            })
+
+            return JsonResponse({'result' : results }, status=200)
+
+        except KeyError :
+            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
+
 class CommentUploadView(View):
     @login_decorator
     def post(self, request, post_id):
@@ -135,41 +170,6 @@ class CommentUploadView(View):
             )
 
             return JsonResponse({'message' : "SUCCESS"}, status=201)
-
-        except KeyError :
-            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
-
-class PostView(View):
-    def get(self, request, post_id):
-        try:
-            results = []
-            post = Post.objects.prefetch_related('postlike_set','comment_set').select_related('user','subcategory').get(id = post_id)
-            comments = post.comment_set.all()
-            comment = [{
-                'user_name'      : comment.user.name,
-                'comment_image'  : comment.image,
-                'comment_content': comment.content,
-                'comment_id'     : comment.id
-            } for comment in comments]
-            
-            results.append({
-                'comment_information'    : comment,
-                'post_title'             : post.title,
-                'post_subtitle'          : post.sub_title,
-                'post_subcategory_name'  : post.subcategory.name,
-                'post_user_name'         : post.user.name,
-                'post_created_at'        : post.created_at.strftime("%b.%d.%Y"),
-                'post_content'           : post.content,
-                'post_like_count'        : post.postlike_set.count(),
-                'post_thumbnail_image'   : post.thumbnail_image,
-                'user_name'              : post.user.name,
-                'user_thumbnail'         : post.user.thumbnail,
-                'user_introduction'      : post.user.introduction,
-                'user_subscription_count': post.user.subscription.all().count(),
-                'post_id'                : post.id
-            })
-
-            return JsonResponse({'message' : results }, status=200)
 
         except KeyError :
             return JsonResponse({"message" : "KEY_ERROR"}, status=400)
