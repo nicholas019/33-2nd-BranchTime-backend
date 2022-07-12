@@ -5,12 +5,70 @@ from django.conf       import settings
 from django.db         import transaction
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from unittest.mock     import patch, MagicMock
+from unittest.mock     import patch
 
 from users.models      import SocialAccount
 from .models           import MainCategory, Post, SubCategory, User
-from core.views        import upload_fileobj
-from my_settings       import MEDIA_URL
+
+
+class CategoryViewTest(TestCase):
+    def setUp(self):
+        MainCategory.objects.bulk_create([
+            MainCategory(id = 1, name = "메인카테고리1"),
+            MainCategory(id = 2, name = "메인카테고리2"),
+        ])
+        SubCategory.objects.bulk_create([
+            SubCategory(id = 1, name = "서브카테고리1", maincategory_id = 1,),
+            SubCategory(id = 2, name = "서브카테고리2", maincategory_id = 1,),
+            SubCategory(id = 3, name = "서브카테고리3", maincategory_id = 1,),
+            SubCategory(id = 4, name = "서브카테고리4", maincategory_id = 2,),
+            SubCategory(id = 5, name = "서브카테고리5", maincategory_id = 2,),
+            SubCategory(id = 6, name = "서브카테고리6", maincategory_id = 2,),
+        ])
+    def tearDown(self):
+        MainCategory.objects.all().delete()
+        SubCategory.objects.all().delete()
+
+    def test_success_category_list_view(self):
+        client = Client()    
+
+        response = client.get('/contents/category')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            "result": [{
+                "maincategory_id": 1,
+                "maincategory_name": "메인카테고리1",
+                "subcategory_list": [
+                    {
+                        "subcategory_id": 1,
+                        "subcategory_name": "서브카테고리1"
+                    },
+                    {
+                        "subcategory_id": 2,
+                        "subcategory_name": "서브카테고리2"
+                    },
+                    {
+                        "subcategory_id": 3,
+                        "subcategory_name": "서브카테고리3"
+                    }]},
+                {
+                        "maincategory_id": 2,
+                        "maincategory_name": "메인카테고리2",
+                        "subcategory_list": [
+                    {
+                        "subcategory_id": 4,
+                        "subcategory_name": "서브카테고리4"
+                    },
+                    {
+                        "subcategory_id": 5,
+                        "subcategory_name": "서브카테고리5"
+                    },
+                    {
+                        "subcategory_id": 6,
+                        "subcategory_name": "서브카테고리6"
+                    }]}
+                    ]})
+
 
 class CommentImageUploadTest(TestCase):
     def setUp(self):
