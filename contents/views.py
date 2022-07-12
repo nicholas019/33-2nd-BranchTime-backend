@@ -148,31 +148,26 @@ class PostDetailView(View):
 class CommentUploadView(View):
     @login_decorator
     def post(self, request, post_id):
-        try:
-            content         = request.POST["content"]
-            user            = request.user
-            image           = request.FILES['comment_image']
+            content = request.POST.get('content', None)
+            image   = request.FILES.get('image', None)
 
-            if not str(image).split('.')[-1] in ['png', 'jpg', 'gif', 'jpeg']:
-                return JsonResponse({"message" : "INVALID EXTENSION"}, status=400)
+            if image:
+                extension = image_extension_list
+                if not str(image).split('.')[-1] in extension:
+                    return JsonResponse({"message":"INVALID EXTENSION"}, status = 400)
 
-            key = "comment_image/" + str(post_id) + "/" + str(image) 
+                image_url = file_handler.upload(file=image)
 
-            upload_fileobj(Fileobj=image, Bucket=bucket, Key=key, ExtraArgs=args)
-
-            image_url = MEDIA_URL + key
+            else:
+                image_url = image 
 
             Comment.objects.create(
                 content = content,
-                user_id = user.id,
                 image   = image_url,
+                user_id = request.user.id,
                 post_id = post_id
             )
-
-            return JsonResponse({'message' : "SUCCESS"}, status=201)
-
-        except KeyError :
-            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
+            return JsonResponse({"message":"SUCCESS"}, status=200)
 
 class CommentView(View):
     @login_decorator
