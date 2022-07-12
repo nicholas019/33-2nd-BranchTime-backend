@@ -2,10 +2,11 @@ import datetime
 
 from django.views          import View
 from django.http           import JsonResponse
+from django.db.models      import Q
 from django.shortcuts      import get_object_or_404
 
 from utils.login_decorator import login_decorator
-from contents.models       import Post, SubCategory, User, Comment, PostLike, MainCategory
+from contents.models       import Post, SubCategory, Comment, MainCategory
 
 
 class CategoryView(View):
@@ -22,6 +23,39 @@ class CategoryView(View):
                 } for category in categoris]
 
         return JsonResponse({'result' : result }, status=200)
+
+class PostListView(View):
+    def get(self, request):
+        try:
+            maincategory_id = request.GET.get('maincategory')
+            subcategory_id  = request.GET.get('subcategory')
+
+            q=Q()
+            if maincategory_id:
+                q &= Q(subcategory__maincategory_id= maincategory_id)
+
+            if subcategory_id:
+                q &= Q(subcategory__id= subcategory_id)
+
+            posts =Post.objects.filter(q).select_related('subcategory', 'user').order_by("-id")
+
+            result = [{
+                "maincategory_id": post.subcategory.maincategory_id,
+                "subcategory_id" : post.subcategory_id,
+                "post_id"        : post.id,
+                "post_title"     : post.title,
+                "post_subTitle"  : post.sub_title,
+                "desc"           : post.content,
+                "commentCount"   : post.comment_set.all().count(),
+                "writeTime"      : post.created_at.strftime("%b.%d.%Y"),
+                "writeUser"      : post.user.name,
+                "imgSrc"         : post.thumbnail_image,
+                } for post in posts]
+                    
+            return JsonResponse({'result' : result }, status=200)
+        except KeyError :
+            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
+
 
 class CommentUploadView(View):
     @login_decorator
@@ -207,39 +241,3 @@ class CommentView(View):
 
         except KeyError :
             return JsonResponse({"message" : "KEY_ERROR"}, status=400)
-
-
-
-class PostListView(View):
-    def get(self, request, maincategory_id):
-        try:
-            main = MainCategory.objects.get(id = maincategory_id)
-            subcategory_lists = main.subcategory_set.all()
-            list ={ 
-                "title_list":{
-                    "main_id"  : main.id,
-                    "main_title": main.name
-                    },
-                "sub_title":[{
-                    "sub_id"  : subcategory_list.id,
-                    "sub_title": subcategory_list.name,
-                    } for subcategory_list in subcategory_lists],
-                "post_list":[[{
-                    "post_id"      : post.id,
-                    "post_title"   : post.title,
-                    "post_subTitle": post.sub_title,
-                    "desc"         : post.content,
-                    "commentCount" : post.comment_set.all().count(),
-                    "writeTime"    : post.reading_time,
-                    "writeUser"    : post.user.name,
-                    "imgSrc"       : post.thumbnail_image,
-                    } for post in Post.objects.select_related("user").filter(subcategory_id=subcategory_list.id)] for subcategory_list in subcategory_lists]
-                    }
-            
-            return JsonResponse({"post_list":list}, status = 200)
-
-        except MainCategory.DoesNotExist:
-            return JsonResponse({"message":"DoesNotExist"}, status = 401)  
-        
-        except KeyError:
-            return JsonResponse({"message":"KEY ERROR"}, status = 400)        
