@@ -1,13 +1,19 @@
-import datetime
+import datetime, boto3
 
-from django.views          import View
-from django.http           import JsonResponse
-from django.db.models      import Q
-from django.shortcuts      import get_object_or_404
+from django.views           import View
+from django.http            import JsonResponse
+from django.db.models       import Q
+from django.conf            import settings
+from django.shortcuts       import get_object_or_404
 
-from utils.login_decorator import login_decorator
-from contents.models       import Post, SubCategory, Comment, MainCategory
-
+from utils.login_decorator  import login_decorator
+from utils.fileuploader_api import FileUploader, FileHandler, image_extension_list
+from contents.models        import Post, SubCategory, Comment, MainCategory
+config = {
+    "bucket" : settings.AWS_STORAGE_BUCKET_NAME
+}
+file_uploader = FileUploader(boto3.client('s3'), config)
+file_handler = FileHandler(file_uploader)
 
 class CategoryView(View):
     def get(self, request):
@@ -56,6 +62,17 @@ class PostListView(View):
         except KeyError :
             return JsonResponse({"message" : "KEY_ERROR"}, status=400)
 
+class PostImageUpload(View):
+    def post(self, request):
+        image = request.FILES['image']
+        
+        extension = image_extension_list
+        if not str(image).split('.')[-1] in extension:
+            return JsonResponse({"message":"INVALID EXTENSION"}, status = 400)
+        
+        image_url = file_handler.upload(file=image)
+        
+        return JsonResponse({'result' : image_url}, status=201)
 
 class CommentUploadView(View):
     @login_decorator
@@ -176,26 +193,6 @@ class PostView(View):
             })
 
             return JsonResponse({'message' : results }, status=200)
-
-        except KeyError :
-            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
-
-class ContentImageUploadView(View):
-    @login_decorator
-    def post(self, request):
-        try:
-            content_image = request.FILES['content_image']
-            print(content_image)
-            if not str(content_image).split('.')[-1] in ['png', 'jpg', 'gif', 'jpeg']:
-                return JsonResponse({"message" : "INVALID EXTENSION"}, status=400)
-
-            key = "content_image/" + str(request.user.id) + "/" + str(content_image)
-
-            upload_fileobj(Fileobj=content_image, Bucket=bucket, Key=key, ExtraArgs=args)
-
-            bucket_object_name = MEDIA_URL + key
-            
-            return JsonResponse({'message' : bucket_object_name}, status=201)
 
         except KeyError :
             return JsonResponse({"message" : "KEY_ERROR"}, status=400)
