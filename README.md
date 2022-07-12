@@ -61,41 +61,56 @@
  - 사용자 이름, 사용자 소개 수정
 
 ### contents APP
-#### 1. CommentUploadView
- - 
+#### 1. CategoryView
+ - 메인화면 및 post list화면에 필요한 카테고리 조회 기능
 
-#### 2. PostUploadView
- - 
+#### 2. PostListView
+ - 작성된 글들의 리스트들을 메인카테고리별 또는 서브카테고리별 조회하는 기능
 
-#### 3. PostView
- - 
+#### 3. PostImageUpload
+ - 글작성시 글 본문에 이미지 삽입을 하기 위한 기능으로 이미지가 저장된 URL을 반환
 
-#### 4. ContentImageUploadView
- - 
+#### 4. PostUploadView
+ - 글 작성을 위한 기능으로 글제목, 글소제목, 썸네일이미지 또는 썸네일부분 배경색상, 본문내용, 리닝시간, 서브카테고리를 받아 저장하는 기능
+ - 섬네일 이미지는 별도로 S3를 통해 저장되어 URL을 DB에 저장하는 기능
 
-#### 5. CommentView
- - 
+#### 5. PostDetailView
+ - PostUploadView로 작성된 글을 상세하게 보는 페이지로 댓글이 있다면 댓글도 같이 반환
+ - 글뿐만아니라 작가정보와 좋아요 및 구독수도 함께 반환
 
-#### 6. PostListView
- - 
+#### 6. CommentUploadView
+ - 글에 해당하는 댓글을 업로드 하는 기능
+ - 댓글에 이미지를 함께 포함할 수 있으며 이미지는 S3에 저장되고 DB에는 URL을 저장
 
-#### 7. PostSubListView
- - 
-
-#### 8. PostAllListView
-
-
+### 7. CommentUpdateView
+ - 댓글 수정 및 삭제 기능
+ - 업로드는 post메소드 업데이트는 patch를 사용하려하였으나 patch메소드에서는 S3가 동작하지않아 별도의 update클래스를 만들어 기능 구현
+ - 댓글 업데이트는 post메소드로 구현, 댓글 삭제는 delete메소드로 구현
 
 
 ### authors APP
 #### 1. ProposalView
- - 
+ - 작가에게 제안하기 메일 발송 기능
+ - utils의 goolge_email_api를 활용해 generate_token 함수를 이용하여 토큰 발급 후 send_mail 함수를 이용해 메일 보내기 수행
+
 #### 2. AuthorListView
- - 
+ - 메인페이지의 추천작가를 위해 서브카테고리에 따라 작가를 반환해주는 기능 구현
+
 #### 3. AuthorDetailView
- - 
+ - AuthorListView에서 반환해주는 작가리스트 정보의 상세정보를 반환해주는 기능
 
+### core APP
+ - models.py 에 TimeStamp 기능을 담당하기위해 구현
 
+### utils directory
+ - 모든 APP에서 중복되어 사용되는 기능들을 모아둔 directory
+ 
+#### 1. login_decorator
+ - login시 발급되는 access_token을 통해 디코딩하여 DB와 비교하여 인가 유무를 판단해주는 기능 담당
+#### 2. google_email_api
+ - 발송인가를 위한 token발급과 메일발송을 담당
+#### 3. fileuploader_api
+ - AWS S3에 파일을 저장, 삭제 하는 기능담당
 
 
 <br/>
