@@ -1,4 +1,4 @@
-import jwt
+import jwt, uuid
 
 from django.test       import TestCase, Client
 from django.conf       import settings
@@ -154,6 +154,61 @@ class PostListViewTest(TestCase):
                 "imgSrc"         : "test.jpg",
             }]
         })
+
+class PostUploadViewTest(TestCase):
+    def setUp(self):
+        with transaction.atomic():
+            User.objects.create(
+                id           = 1,
+                name         = "홍길동",
+                email        = "test@gmail.com",
+                thumbnail    = "test.jpg",
+                introduction = "홍길동님의 BranchTime입니다."
+            )
+            SocialAccount.objects.create(
+                        id                = 1,
+                        social_account_id = "123123123",
+                        name              = "kakao",
+                        user_id           = 1
+                        )
+        MainCategory.objects.create(
+                id   = 1,
+                name = "메인카테고리"
+            )
+        SubCategory.objects.create(
+                id              = 1,
+                name            = "서브카테고리",
+                maincategory_id = 1
+            )                
+    def tearDown(self):
+        User.objects.all().delete()
+        MainCategory.objects.all().delete()
+        SubCategory.objects.all().delete()
+
+    @patch("utils.fileuploader_api.FileUploader.upload")
+    def test_success_post_upload(self, mocked_requests):
+        client = Client()
+        self.token = jwt.encode({'id':1}, settings.SECRET_KEY, settings.ALGORITHM)
+        headers    = {"HTTP_Authorization":self.token}
+        image      = SimpleUploadedFile('python.png', b'')
+
+        class MockedResponse:
+            def upload(file):
+                file   = str(uuid.uuid4())
+                config = settings.AWS_STORAGE_BUCKET_NAME
+                return f'https://{config}.s3.{settings.AWS_REGION}.amazonaws.com/{file}'
+
+        mocked_requests.return_value = MockedResponse()
+        data = {
+            "title" : "제목1",
+            "sub_title" : "소제목1",
+            "image" : image,
+            "content" : "글내용1",
+            "subcategory_id" : 1
+        }
+        response = client.post("/contents/postupload", data, **headers)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(),{"message":"SUCCESS"})
 
 
 class CommentImageUploadTest(TestCase):

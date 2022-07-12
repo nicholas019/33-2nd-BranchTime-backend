@@ -74,6 +74,42 @@ class PostImageUpload(View):
         
         return JsonResponse({'result' : image_url}, status=201)
 
+class PostUploadView(View):
+    @login_decorator
+    def post(self, request):
+        try:
+            title          = request.POST["title"]
+            sub_title      = request.POST["sub_title"]
+            image          = request.FILES.get('image', None)
+            color_code     = request.POST.get('color_code', None)
+            content        = request.POST["content"]
+            reading_time   = datetime.time(0,int(len(content.replace(" ",""))/275+1),0)
+            subcategory_id = request.POST["subcategory_id"]
+            
+            if image:
+                extension = ['PNG', 'png','jpg', 'JPG', 'GIF', 'gif', 'JPEG', 'jpeg']
+                if not str(image).split('.')[-1] in extension:
+                    return JsonResponse({"message":"INVALID EXTENSION"}, status = 400)
+
+                image_url = file_handler.upload(file=image)
+            else:
+                image_url = color_code
+
+            Post.objects.create(
+                title           = title,
+                sub_title       = sub_title,
+                thumbnail_image = image_url,
+                content         = content,
+                reading_time    = reading_time,
+                user_id         = request.user.id,
+                subcategory_id  = subcategory_id,
+            )
+
+            return JsonResponse({"message":"SUCCESS"}, status=201)
+
+        except KeyError :
+            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
+
 class CommentUploadView(View):
     @login_decorator
     def post(self, request, post_id):
@@ -96,65 +132,6 @@ class CommentUploadView(View):
                 user_id = user.id,
                 image   = image_url,
                 post_id = post_id
-            )
-
-            return JsonResponse({'message' : "SUCCESS"}, status=201)
-
-        except KeyError :
-            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
-            
-class PostUploadView(View):
-    @login_decorator
-    def get(self, request):
-        try:
-            categories = MainCategory.objects.prefetch_related('subcategory_set').all()
-
-            results = [{
-                'id'  : category.id,
-                'main_category_name': category.name,
-                'sub_category' : [{
-                    'id': subcategory.id,
-                    'name': subcategory.name
-                }for subcategory in category.subcategory_set.all()]
-            } for category in  categories]
-
-            return JsonResponse({'message' : results }, status=200)
-
-        except KeyError :
-            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
-        
-    @login_decorator
-    def post(self, request):
-        try:
-            content         = request.POST["content"]
-            reading_time    = datetime.time(0,int(len(content.replace(" ",""))/275+1),0)
-            user            = request.user
-            subcategory     = request.POST["subcategory"]
-            sub_title       = request.POST["sub_title"]
-            thumbnail_image = request.FILES.get('thumbnail_image', None)
-            color_code      = request.POST.get('color_code', None)
-            title           = request.POST["title"]
-
-            if thumbnail_image is not None:
-                if not str(thumbnail_image).split('.')[-1] in ['png', 'jpg', 'gif', 'jpeg']:
-                    return JsonResponse({"message" : "INVALID EXTENSION"}, status=400)
-
-                key = "/thumbnail_image/" + str(user.id) + "/" + str(thumbnail_image) 
-
-                upload_fileobj(Fileobj=thumbnail_image, Bucket=bucket, Key=key, ExtraArgs=args)
-                thumbnail_image = MEDIA_URL + key
-
-            else:
-                thumbnail_image = color_code
-
-            Post.objects.create(
-                content         = content,
-                user_id         = user.id,
-                subcategory_id  = SubCategory.objects.get(id=subcategory).id,
-                sub_title       = sub_title,
-                thumbnail_image = thumbnail_image,
-                title           = title,
-                reading_time    = reading_time,
             )
 
             return JsonResponse({'message' : "SUCCESS"}, status=201)
