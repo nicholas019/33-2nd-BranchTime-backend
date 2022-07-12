@@ -1,22 +1,27 @@
-import json
 import datetime
-import requests
-import boto3
 
-from django.views           import View
-from django.http            import JsonResponse
-from django.db.models.query import QuerySet
-from django.shortcuts       import get_object_or_404
+from django.views             import View
+from django.http              import JsonResponse
+from django.shortcuts         import get_object_or_404
 
-from    core.views          import upload_fileobj, delete_object
-from    my_settings         import MEDIA_URL, AWS_STORAGE_BUCKET_NAME
-from    botocore.exceptions import ClientError
-from    core.utils          import login_decorator
-from    contents.models     import Post, SubCategory, User, Comment, PostLike, MainCategory
+from    utils.login_decorator import login_decorator
+from    contents.models       import Post, SubCategory, User, Comment, PostLike, MainCategory
 
 
-bucket = AWS_STORAGE_BUCKET_NAME
-args   = {'ACL':'public-read'}
+class CategoryView(View):
+    def get(self, request):
+        categoris = MainCategory.objects.all().prefetch_related('subcategory_set')
+
+        result = [{
+            "maincategory_id"  : category.id,
+            "maincategory_name": category.name,
+            "subcategory_list":[{
+                "subcategory_id"  : sub.id,
+                "subcategory_name": sub.name,
+                }for sub in category.subcategory_set.all() ]
+                } for category in categoris]
+
+        return JsonResponse({'result' : result }, status=200)
 
 class CommentUploadView(View):
     @login_decorator
