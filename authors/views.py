@@ -37,24 +37,18 @@ class ProposalView(View):
 
 class AuthorListView(View):
     def get(self, request):
-        try:
-            
-            subcategory_id = request.GET.get("subcategory_id")
-            subcategory    = SubCategory.objects.get(id = subcategory_id)
-            authors        = Author.objects.select_related('user').filter(subcategory_id = subcategory.id)
-            
-            result = [{
-                "author_thumbnail"   : author.user.thumbnail,
-                'author_name'        : author.user.name,
-                "author_introduction": author.introduction,
-                "author_subcategory" : author.subcategory.name,
-                "author_id"          : author.id
-            }for author in authors]
+        subcategory = request.GET.get("subcategory")
+        authors     = Author.objects.select_related('user','subcategory').filter(subcategory_id = subcategory)
+        
+        result = [{
+            "author_id"          : author.id,
+            'author_name'        : author.user.name,
+            "author_thumbnail"   : author.user.thumbnail,
+            "author_introduction": author.introduction,
+            "author_subcategory" : author.subcategory.name,
+        }for author in authors]
 
-            return JsonResponse({"message" : result}, status=201)
-
-        except KeyError :
-            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
+        return JsonResponse({"result" : result}, status=201)
 
 class AuthorDetailView(View):
     def get(self, request, author_id):
