@@ -1,13 +1,12 @@
 import json
 
-from django.views    import View
-from django.http     import JsonResponse
+from django.views           import View
+from django.http            import JsonResponse
 
-from authors.models                 import Author, Proposal, ProposalObject
-from contents.models                import SubCategory
-from utils.google_email_api         import GoogleEmail
-from utils.login_decorator          import login_decorator
+from utils.google_email_api import GoogleEmail
+from utils.login_decorator  import login_decorator
 
+from authors.models         import Author, Proposal, ProposalObject
 
 class ProposalView(View):
     @login_decorator
