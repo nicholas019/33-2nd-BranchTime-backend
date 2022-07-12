@@ -169,44 +169,57 @@ class CommentUploadView(View):
             )
             return JsonResponse({"message":"SUCCESS"}, status=200)
 
-class CommentView(View):
+class CommentUpdateView(View):
     @login_decorator
-    def post(self, request, comment_id):
-        try:
+    def post(self, request, post_id, comment_id):
+        try : 
             content = request.POST.get('content', None)
             image   = request.FILES.get('image', None)
-            comment = get_object_or_404(Comment, id=comment_id)
 
-            if image is not None:
-                KEY = comment.image.split("amazonaws.com/")[-1]
-                key = str(KEY) 
-                delete_object(Bucket = bucket, Key=key)
-           
-                key = "comment_image/" + str(comment.post_id) + "/" + str(image) 
-                print(key)
-                upload_fileobj(Fileobj = image, Bucket=bucket, Key=key, ExtraArgs=args)
-            
-                image_url     = MEDIA_URL + key
-                comment.image = image_url
-
-            if content is not None:
+            comment = Comment.objects.get(
+                id      = comment_id,
+                post_id = post_id,
+                user_id = request.user.id
+                )
+                    
+            if content:
                 comment.content = content
+                comment.save()
 
-            comment.save()
-
-            return JsonResponse({'message' : "SUCCESS"}, status=200)
-
-        except KeyError :
-                return JsonResponse({"message" : "KEY_ERROR"}, status=400)
-
+            if image:
+                if comment.image:
+                    file_name = comment.image.split("amazonaws.com/")[-1]
+                    file_handler.delete(file_name=file_name)
+                    comment.image = image
+                    comment.save()
+                    return JsonResponse({"message":"SUCCESS"}, status = 200)
+            
+                comment.image = image
+                comment.save()
+                return JsonResponse({"message":"SUCCESS"}, status = 200)
+        
+        except Comment.DoesNotExist:
+            return JsonResponse({"message" : "DoesNotExist"}, status = 401)  
 
     @login_decorator
-    def delete(self, request, comment_id):
+    def delete(self, request, post_id, comment_id):
         try:
-            comment = get_object_or_404(Comment, id=comment_id)
+            comment = Comment.objects.get(
+                id      = comment_id,
+                post_id = post_id,
+                user_id = request.user.id
+                )
+
+            if comment.image:
+                file_name = comment.image.split("amazonaws.com/")[-1]
+                file_handler.delete(file_name=file_name)
+                comment.delete()
+                return JsonResponse({"message":"SUCCESS"}, status = 204)
+
             comment.delete()
+            return JsonResponse({"message":"SUCCESS"}, status = 204)
 
-            return JsonResponse({'message' : "SUCCESS"}, status=204)
+        except Comment.DoesNotExist:
+            return JsonResponse({"message" : "DoesNotExist"}, status = 401)  
 
-        except KeyError :
-            return JsonResponse({"message" : "KEY_ERROR"}, status=400)
+
