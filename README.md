@@ -16,6 +16,14 @@
 * 실무 수준의 프로젝트이지만 학습용으로 만들었기 때문에 이 코드를 활용하여 이득을 취하거나 무단 배포할 경우 법적으로 문제될 수 있습니다.
 * 이 프로젝트에서 사용하고 있는 로고와 배너는 해당 프로젝트 팀원 소유이므로 해당 프로젝트 외부인이 사용할 수 없습니다.
 
+![ezgif-2-79bca24642](https://user-images.githubusercontent.com/103249222/178927358-2720b3b3-0b7c-4e07-9079-9c0492471147.gif)
+![ezgif-2-1b836a84a8](https://user-images.githubusercontent.com/103249222/178927333-25df49a0-41e4-49d6-8290-d9d8031d38da.gif)
+![ezgif-2-3243a49863](https://user-images.githubusercontent.com/103249222/178927359-e9799464-697d-425e-920b-dca8c7c2698d.gif)
+![ezgif-2-d2c95f9493](https://user-images.githubusercontent.com/103249222/178927362-48e20ef9-918d-4ce9-a1c3-3f198694da1d.gif)
+![ezgif-2-1f456bae0a](https://user-images.githubusercontent.com/103249222/178927345-70473484-0ffb-4856-9d89-ea3bb4186529.gif)
+![ezgif-2-3fb3c5702c](https://user-images.githubusercontent.com/103249222/178927355-5c85e849-5b3d-496a-98a4-e5a6e34d856b.gif)
+
+
 <br/>
 
 ## 🌼 개발 인원 및 기간 🌼
